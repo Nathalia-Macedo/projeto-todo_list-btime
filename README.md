@@ -92,6 +92,6 @@ A aplicação foi construída com um sistema de **Grid Adaptável**. No mobile, 
 
 **Nath**
 
-> "Desenvolvido com foco em código limpo, escalabilidade e, acima de tudo, na experiência do usuário final."
+> Desenvolvido com foco em código limpo, escalabilidade e, acima de tudo, na experiência do usuário final.
 
 ---
