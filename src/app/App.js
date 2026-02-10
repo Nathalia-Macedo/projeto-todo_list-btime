@@ -45,6 +45,16 @@ function App() {
     }
   }, [darkMode]);
 
+  // Título Dinâmico: Mostra no navegador o status das tarefas
+useEffect(() => {
+  const totalPending = stats.todo + stats.doing;
+  if (totalPending > 0) {
+    document.title = `(${totalPending}) KanbanPro | Gestão de Fluxo`;
+  } else {
+    document.title = "KanbanPro | Tudo em dia!";
+  }
+}, [stats.todo, stats.doing]);
+
   // 4. Funções de Manipulação
   const moveTask = (taskId, newStatus) => {
     const updatedTasks = tasks.map(task => 

@@ -52,6 +52,10 @@ A aplicação foi construída com um sistema de **Grid Adaptável**. No mobile, 
 **Problema:** Implementar temas sem duplicar arquivos CSS.
 **Lógica:** Manipulação direta do `classList` do `document.documentElement`. O React atua como a ponte de estado para injetar a classe `.dark`, permitindo que o Tailwind aplique os estilos condicionais instantaneamente através de modificadores de classe.
 
+
+### 6. Dinâmica de Document Title (Tab Engagement)
+**Problema:** Usuários multitarefa frequentemente perdem o foco da aplicação em abas secundárias.
+**Lógica:** Implementei um `useEffect` que monitora o estado global das tarefas. Através da manipulação do `document.title`, a aplicação comunica a quantidade de tarefas pendentes diretamente na aba do navegador. Essa técnica de "Passive Notification" aumenta o engajamento e a utilidade da ferramenta como um dashboard de monitoramento em tempo real.
 ---
 
 ## 🛠️ Stack Tecnológica
