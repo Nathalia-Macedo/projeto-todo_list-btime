@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 <head>
     <meta charset="utf-8" />
     <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/1066/1066371.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#2563eb" /> <meta
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta
       name="description"
       content="KanbanPro - Gerenciamento de tarefas de alta performance com analytics integrado."
     />
@@ -20,20 +21,45 @@
         darkMode: 'class',
       }
     </script>
+
+    <style>
+      /* Impede que a tela "pule" ou atualize ao arrastar para baixo no mobile */
+      body {
+        overscroll-behavior-y: contain;
+        touch-action: pan-x pan-y;
+      }
+
+      /* Estilo visual para o item que está sendo arrastado (ajuda no feedback do Polyfill) */
+      [draggable="true"] {
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+      }
+
+      .dnd-poly-dragging {
+        opacity: 0.5 !important;
+        transform: scale(1.05);
+        box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+      }
+      /* Impede o menu de contexto chato ao segurar o card no mobile */
+.group {
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+/* Garante que o container das colunas permita o drop livremente */
+main div[onDragOver] {
+  touch-action: none; 
+}
+    </style>
+
+    <script src="https://bernardo-castilho.github.io/dragdrop-touch/DragDropTouch.js"></script>
 </head>
-  <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+  <body class="bg-gray-50 dark:bg-slate-950">
+    <noscript>Você precisa ativar o JavaScript para rodar este aplicativo.</noscript>
+    
     <div id="root"></div>
-    <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
 
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
-
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
-
-  </body>
+    </body>
 </html>
