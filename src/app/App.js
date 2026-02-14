@@ -4,12 +4,14 @@ import TaskCard from '../components/taskCard';
 import TaskModal from '../components/taskModal';
 import SkeletonCard from '../components/skeletonCard';
 import AddTaskModal from '../components/addTaskModal';
+import WelcomeModal from '../components/WelcomeModal'; // Certifique-se de criar este arquivo
 
 const API_URL = "https://api-elixir-btime.onrender.com/api";
 
 function App() {
   const [tasks, setTasks] = useState([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false); // Novo estado para o Onboarding
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPriority, setFilterPriority] = useState("todas");
   const [filterToday, setFilterToday] = useState(false);
@@ -153,7 +155,6 @@ function App() {
     }
   };
 
-  // CORREÇÃO: Envolvendo o status em um objeto 'input' como o GraphQL do Elixir exige
   const moveTask = async (taskId, newStatus) => {
     const mutation = `
       mutation {
@@ -164,7 +165,6 @@ function App() {
       }
     `;
 
-    // Atualização otimista
     const previousTasks = [...tasks];
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
 
@@ -179,8 +179,7 @@ function App() {
 
       if (result.errors) {
         setTasks(previousTasks); 
-        toast.error("Erro ao mover: entrada inválida.");
-        console.error("Erro GraphQL:", result.errors);
+        toast.error("Erro ao mover.");
       } else {
         toast.success("Status atualizado!");
       }
@@ -194,6 +193,12 @@ function App() {
   // --- EFEITOS ---
 
   useEffect(() => {
+    // Lógica de primeira visita
+    const hasVisited = localStorage.getItem('kanban_visited');
+    if (!hasVisited) {
+      setShowWelcome(true);
+      localStorage.setItem('kanban_visited', 'true');
+    }
     fetchTasks();
   }, [fetchTasks]);
 
@@ -205,7 +210,7 @@ function App() {
     }
   }, [darkMode]);
 
-  // --- LÓGICA DE DASHBOARD ---
+  // --- DASHBOARD STATS ---
 
   const stats = {
     total: tasks.length,
@@ -221,20 +226,14 @@ function App() {
   }, [stats.todo, stats.doing]);
 
   // --- DRAG AND DROP ---
-
-  const handleDragStart = (e, taskId) => { 
-    e.dataTransfer.setData("taskId", taskId); 
-  };
-  const handleDragOver = (e) => { 
-    e.preventDefault(); 
-  };
+  const handleDragStart = (e, taskId) => { e.dataTransfer.setData("taskId", taskId); };
+  const handleDragOver = (e) => { e.preventDefault(); };
   const handleDrop = (e, newStatus) => {
     const taskId = e.dataTransfer.getData("taskId");
     if (taskId) moveTask(taskId, newStatus);
   };
 
   // --- FILTRAGEM ---
-
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           task.location.toLowerCase().includes(searchTerm.toLowerCase());
@@ -249,29 +248,6 @@ function App() {
     { id: 'doing', title: 'Em Andamento' },
     { id: 'done', title: 'Concluído' }
   ];
-
-  const DashboardHeader = () => (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 max-w-6xl mx-auto">
-      {[
-        { label: 'Pendentes', value: stats.todo + stats.doing, color: 'text-blue-600', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-        { label: 'Críticas', value: stats.critical, color: 'text-rose-600', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
-        { label: 'Em Curso', value: stats.doing, color: 'text-amber-600', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
-        { label: 'Finalizadas', value: stats.done, color: 'text-emerald-600', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
-      ].map((item, idx) => (
-        <div key={idx} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm transition-all hover:shadow-md">
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg bg-gray-50 dark:bg-slate-800 ${item.color}`}>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={item.icon} /></svg>
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">{item.label}</p>
-              <p className="text-xl font-black">{isLoading ? '...' : item.value}</p>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
 
   return (
     <div className={`${darkMode ? 'dark' : ''}`}>
@@ -294,13 +270,26 @@ function App() {
               Kanban<span className="text-blue-600">Pro</span>
             </h1>
             
-            <button onClick={() => setDarkMode(!darkMode)} className="p-3 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all">
-              {darkMode ? (
-                <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-              ) : (
-                <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-              )}
-            </button>
+            <div className="flex gap-2">
+              {/* NOVO: Botão de Informações do Projeto */}
+              <button 
+                onClick={() => setShowWelcome(true)}
+                className="p-3 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-gray-200 dark:border-slate-700 hover:text-blue-600 transition-all flex items-center justify-center group"
+                title="Informações do Projeto"
+              >
+                <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+
+              <button onClick={() => setDarkMode(!darkMode)} className="p-3 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all">
+                {darkMode ? (
+                  <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                ) : (
+                  <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                )}
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-col md:flex-row gap-4 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md p-4 rounded-2xl border border-gray-200 dark:border-slate-800 items-center justify-between">
@@ -321,7 +310,27 @@ function App() {
           </div>
         </header>
 
-        <DashboardHeader />
+        {/* Dashboard Grid Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 max-w-6xl mx-auto">
+          {[
+            { label: 'Pendentes', value: stats.todo + stats.doing, color: 'text-blue-600', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+            { label: 'Críticas', value: stats.critical, color: 'text-rose-600', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
+            { label: 'Em Curso', value: stats.doing, color: 'text-amber-600', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
+            { label: 'Finalizadas', value: stats.done, color: 'text-emerald-600', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+          ].map((item, idx) => (
+            <div key={idx} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm transition-all hover:shadow-md">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg bg-gray-50 dark:bg-slate-800 ${item.color}`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={item.icon} /></svg>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">{item.label}</p>
+                  <p className="text-xl font-black">{isLoading ? '...' : item.value}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
 
         <main className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
           {columns.map(col => {
@@ -343,7 +352,7 @@ function App() {
                         task={task} 
                         onClick={() => setSelectedTask(task)} 
                         onDragStart={handleDragStart}
-                        onDelete={deleteTask} // Função passada corretamente aqui
+                        onDelete={deleteTask}
                       />
                     ))
                   ) : (
@@ -366,6 +375,9 @@ function App() {
 
         {isAddModalOpen && <AddTaskModal onClose={() => setIsAddModalOpen(false)} onAdd={addTask} />}
         {selectedTask && <TaskModal task={selectedTask} onClose={() => setSelectedTask(null)} onMove={moveTask} />}
+        
+        {/* MODAL DE BOAS-VINDAS ESPECTACULAR */}
+        {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} darkMode={darkMode} />}
       </div>
     </div>
   );
