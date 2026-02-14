@@ -1,6 +1,6 @@
 import React from 'react';
 
-const TaskCard = ({ task, onClick, onDragStart }) => {
+const TaskCard = ({ task, onClick, onDragStart, onDelete }) => {
   // Cores sólidas para a lateral e versões suaves para o hover
   const theme = {
     baixa: {
@@ -30,6 +30,12 @@ const TaskCard = ({ task, onClick, onDragStart }) => {
   const urgent = isUrgent(task.date) && task.status !== 'done';
   const currentTheme = theme[task.priority] || theme.baixa;
 
+  // Função para evitar que o clique no botão de apagar abra o modal da tarefa
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    onDelete(task.id);
+  };
+
   return (
     <div 
       draggable 
@@ -37,22 +43,45 @@ const TaskCard = ({ task, onClick, onDragStart }) => {
       onClick={() => onClick(task)}
       className={`group relative overflow-hidden bg-white dark:bg-slate-900 p-0 rounded-2xl border border-gray-100 dark:border-white/5 cursor-grab active:cursor-grabbing transition-all duration-300 hover:-translate-y-1 shadow-sm hover:shadow-xl ${currentTheme.glow}`}
     >
-      {/* A "Borda" Lateral Sólida - Ocupa 100% da altura do lado esquerdo */}
+      {/* Borda Lateral Sólida */}
       <div className={`absolute left-0 top-0 bottom-0 w-3 ${currentTheme.accent}`} />
 
-      {/* Conteúdo com Padding para não encostar na barra lateral */}
+      {/* Conteúdo */}
       <div className="pl-7 pr-5 py-5">
         <div className="flex justify-between items-start mb-2">
           <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${currentTheme.text}`}>
             {task.priority}
           </span>
           
-          {urgent && (
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {urgent && (
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+              </span>
+            )}
+            
+            {/* Botão Apagar com Ícone SVG */}
+            <button 
+              onClick={handleDelete}
+              className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-all duration-200"
+              title="Excluir tarefa"
+            >
+              <svg 
+                className="w-4 h-4" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth="2" 
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
+                />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <h3 className="font-bold text-gray-800 dark:text-slate-100 text-[15px] leading-snug mb-4 group-hover:text-blue-500 transition-colors">
@@ -60,7 +89,6 @@ const TaskCard = ({ task, onClick, onDragStart }) => {
         </h3>
 
         <div className="flex items-center justify-between pt-4 border-t border-gray-50 dark:border-white/5">
-          {/* Badge de Localização Minimalista */}
           <div className="flex items-center gap-2 bg-gray-50 dark:bg-slate-800/50 px-2 py-1 rounded-lg">
             <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -79,7 +107,6 @@ const TaskCard = ({ task, onClick, onDragStart }) => {
         </div>
       </div>
 
-      {/* Efeito de Overlay no Hover para profundidade */}
       <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/[0.02] dark:group-hover:bg-white/[0.02] transition-colors pointer-events-none" />
     </div>
   );

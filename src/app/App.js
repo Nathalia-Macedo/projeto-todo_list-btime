@@ -1,16 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { initialTasks } from '../data/tasks';
+import React, { useState, useEffect, useCallback } from 'react';
 import TaskCard from '../components/taskCard';
 import TaskModal from '../components/taskModal';
 import SkeletonCard from '../components/skeletonCard';
+import AddTaskModal from '../components/addTaskModal';
+
+const API_URL = "https://api-elixir-btime.onrender.com/api";
 
 function App() {
-  // 1. Inicialização de Estado com Persistência
-  const [tasks, setTasks] = useState(() => {
-    const savedTasks = localStorage.getItem('kanban-pro-data');
-    return savedTasks ? JSON.parse(savedTasks) : initialTasks;
-  });
-
+  const [tasks, setTasks] = useState([]);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPriority, setFilterPriority] = useState("todas");
   const [filterToday, setFilterToday] = useState(false);
@@ -18,24 +16,151 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 2. Lógica do Dashboard Master (Calculada a cada renderização)
-  const stats = {
-    total: tasks.length,
-    critical: tasks.filter(t => t.priority === 'crítica' && t.status !== 'done').length,
-    todo: tasks.filter(t => t.status === 'todo').length,
-    doing: tasks.filter(t => t.status === 'doing').length,
-    done: tasks.filter(t => t.status === 'done').length,
-  };
+  // --- FUNÇÕES DE API (GRAPHQL) ---
 
-  // 3. Efeitos (Simulação de Load, Persistência e Dark Mode)
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1500);
-    return () => clearTimeout(timer);
+  const fetchTasks = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: `
+            query {
+              list_tasks {
+                id
+                title
+                description
+                status
+                priority
+                location
+                due_date
+              }
+            }
+          `
+        })
+      });
+
+      const json = await response.json();
+      if (json.data && json.data.list_tasks) {
+        const mappedTasks = json.data.list_tasks.map(t => ({
+          ...t,
+          date: t.due_date 
+        }));
+        setTasks(mappedTasks);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar tarefas:", error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
+  const deleteTask = async (taskId) => {
+    if (!window.confirm("Tem certeza que deseja apagar esta tarefa?")) return;
+
+    const mutation = `
+      mutation {
+        delete_task(id: "${taskId}") {
+          id
+        }
+      }
+    `;
+
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: mutation })
+      });
+
+      const result = await response.json();
+      if (result.errors) {
+        console.error("Erro ao apagar:", result.errors);
+      } else {
+        setTasks(prev => prev.filter(t => t.id !== taskId));
+      }
+    } catch (error) {
+      console.error("Erro de conexão ao apagar:", error);
+    }
+  };
+
+  const addTask = async (taskData) => {
+    const priorityMap = {
+      'baixa': 'low',
+      'alta': 'high',
+      'crítica': 'critical'
+    };
+
+    const translatedPriority = priorityMap[taskData.priority.toLowerCase()] || 'low';
+
+    const mutation = `
+      mutation {
+        create_task(
+          title: "${taskData.title}",
+          description: "${taskData.description || ""}",
+          priority: "${translatedPriority}",
+          location: "${taskData.location}",
+          due_date: "${taskData.date}",
+          status: "todo"
+        ) {
+          id
+          title
+        }
+      }
+    `;
+
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: mutation })
+      });
+      
+      const result = await response.json();
+      
+      if (result.errors) {
+        console.error("Erro detalhado do servidor:", result.errors);
+      } else {
+        setIsAddModalOpen(false);
+        fetchTasks();
+      }
+    } catch (error) {
+      console.error("Erro de conexão:", error);
+    }
+  };
+
+  const moveTask = async (taskId, newStatus) => {
+    // Ajustado para 'update_task' conforme padrão snake_case do seu backend Elixir
+    const mutation = `
+      mutation {
+        update_task(id: "${taskId}", status: "${newStatus}") {
+          id
+          status
+        }
+      }
+    `;
+
+    try {
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+      
+      await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: mutation })
+      });
+      setSelectedTask(null);
+    } catch (error) {
+      console.error("Erro ao mover tarefa:", error);
+      fetchTasks();
+    }
+  };
+
+  // --- EFEITOS ---
+
   useEffect(() => {
-    localStorage.setItem('kanban-pro-data', JSON.stringify(tasks));
-  }, [tasks]);
+    fetchTasks();
+  }, [fetchTasks]);
 
   useEffect(() => {
     if (darkMode) {
@@ -45,53 +170,40 @@ function App() {
     }
   }, [darkMode]);
 
-  // Título Dinâmico: Mostra no navegador o status das tarefas
-useEffect(() => {
-  const totalPending = stats.todo + stats.doing;
-  if (totalPending > 0) {
-    document.title = `(${totalPending}) KanbanPro | Gestão de Fluxo`;
-  } else {
-    document.title = "KanbanPro | Tudo em dia!";
-  }
-}, [stats.todo, stats.doing]);
+  // --- LÓGICA DE DASHBOARD ---
 
-  // 4. Funções de Manipulação
-  const moveTask = (taskId, newStatus) => {
-    const updatedTasks = tasks.map(task => 
-      task.id === taskId ? { ...task, status: newStatus } : task
-    );
-    setTasks(updatedTasks);
-    setSelectedTask(null);
+  const stats = {
+    total: tasks.length,
+    critical: tasks.filter(t => t.priority === 'crítica' && t.status !== 'done').length,
+    todo: tasks.filter(t => t.status === 'todo').length,
+    doing: tasks.filter(t => t.status === 'doing').length,
+    done: tasks.filter(t => t.status === 'done').length,
   };
 
-  const handleDragStart = (e, taskId) => {
-    e.dataTransfer.setData("taskId", taskId);
-  };
+  useEffect(() => {
+    const totalPending = stats.todo + stats.doing;
+    document.title = totalPending > 0 ? `(${totalPending}) KanbanPro` : "KanbanPro | Tudo em dia!";
+  }, [stats.todo, stats.doing]);
 
+  // --- DRAG AND DROP ---
+
+  const handleDragStart = (e, taskId) => { e.dataTransfer.setData("taskId", taskId); };
   const handleDragOver = (e) => { e.preventDefault(); };
-
   const handleDrop = (e, newStatus) => {
     const taskId = e.dataTransfer.getData("taskId");
-    moveTask(Number(taskId), newStatus);
+    moveTask(taskId, newStatus);
   };
 
-  // 5. Lógica de Filtragem
+  // --- FILTRAGEM ---
+
   const filteredTasks = tasks.filter(task => {
-    const matchesSearch = 
-      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.location.toLowerCase().includes(searchTerm.toLowerCase());
-    
+    const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          task.location.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesPriority = filterPriority === "todas" || task.priority === filterPriority;
-    
     const todayStr = new Date().toISOString().split('T')[0];
     const matchesToday = !filterToday || task.date === todayStr;
-
     return matchesSearch && matchesPriority && matchesToday;
   });
-
-  const completedPercentage = tasks.length > 0 
-    ? Math.round((tasks.filter(t => t.status === 'done').length / tasks.length) * 100)
-    : 0;
 
   const columns = [
     { id: 'todo', title: 'A Fazer' },
@@ -99,7 +211,6 @@ useEffect(() => {
     { id: 'done', title: 'Concluído' }
   ];
 
-  // 6. Sub-componente Interno para o Dashboard
   const DashboardHeader = () => (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 max-w-6xl mx-auto">
       {[
@@ -111,9 +222,7 @@ useEffect(() => {
         <div key={idx} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm transition-all hover:shadow-md">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg bg-gray-50 dark:bg-slate-800 ${item.color}`}>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={item.icon} />
-              </svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={item.icon} /></svg>
             </div>
             <div>
               <p className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">{item.label}</p>
@@ -147,31 +256,15 @@ useEffect(() => {
             </button>
           </div>
 
-          <div className="mb-8 max-w-md">
-            <div className="flex justify-between text-[10px] font-bold uppercase mb-2 text-gray-400 tracking-widest">
-              <span>Performance da Sprint</span>
-              <span>{completedPercentage}%</span>
-            </div>
-            <div className="w-full bg-gray-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-blue-600 h-full transition-all duration-1000 shadow-[0_0_8px_rgba(37,99,235,0.4)]" style={{ width: `${completedPercentage}%` }}></div>
-            </div>
-          </div>
-          
-          <div className="flex flex-col md:flex-row gap-4 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md p-4 rounded-2xl border border-gray-200 dark:border-slate-800">
-            <div className="relative flex-1">
+          <div className="flex flex-col md:flex-row gap-4 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md p-4 rounded-2xl border border-gray-200 dark:border-slate-800 items-center justify-between">
+            <div className="relative flex-1 w-full">
               <svg className="absolute left-3 top-3 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-              <input type="text" placeholder="Pesquisar tarefas..." className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm" onChange={(e) => setSearchTerm(e.target.value)} />
+              <input type="text" placeholder="Pesquisar tarefas..." className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm" onChange={(e) => setSearchTerm(e.target.value)} />
             </div>
 
-            <div className="flex gap-2">
-              <button 
-                onClick={() => setFilterToday(!filterToday)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${filterToday ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700 text-gray-500'}`}
-              >
-                Hoje
-              </button>
-              
-              <select className="p-2 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-sm font-medium" onChange={(e) => setFilterPriority(e.target.value)}>
+            <div className="flex gap-2 w-full md:w-auto">
+              <button onClick={() => setFilterToday(!filterToday)} className={`flex-1 md:flex-none px-4 py-2 rounded-xl text-xs font-bold transition-all border ${filterToday ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700 text-gray-500'}`}>Hoje</button>
+              <select className="flex-1 md:flex-none p-2 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl outline-none text-sm font-medium" onChange={(e) => setFilterPriority(e.target.value)}>
                 <option value="todas">Prioridades</option>
                 <option value="baixa">Baixa</option>
                 <option value="alta">Alta</option>
@@ -181,39 +274,34 @@ useEffect(() => {
           </div>
         </header>
 
-        {/* Renderização do Dashboard Master */}
         <DashboardHeader />
 
         <main className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
           {columns.map(col => {
             const columnTasks = filteredTasks.filter(t => t.status === col.id);
-            
             return (
-              <div key={col.id} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, col.id)} className="flex flex-col bg-gray-100/50 dark:bg-slate-900/30 p-5 rounded-3xl border border-gray-200/50 dark:border-slate-800 min-h-[600px] transition-all">
+              <div key={col.id} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, col.id)} className="flex flex-col bg-gray-100/50 dark:bg-slate-900/30 p-5 rounded-3xl border border-gray-200/50 dark:border-slate-800 min-h-[600px]">
                 <div className="flex justify-between items-center mb-6 px-1">
-                  <h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-[0.2em]">{col.title}</h2>
-                  <span className="text-[10px] font-bold bg-gray-200 dark:bg-slate-800 px-2 py-0.5 rounded-md">
-                    {isLoading ? "..." : columnTasks.length}
-                  </span>
+                  <h2 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest">{col.title}</h2>
+                  <span className="text-[10px] font-bold bg-gray-200 dark:bg-slate-800 px-2 py-0.5 rounded-md">{isLoading ? "..." : columnTasks.length}</span>
                 </div>
                 
                 <div className="space-y-3 h-full">
                   {isLoading ? (
-                    <>
-                      <SkeletonCard />
-                      <SkeletonCard />
-                      <SkeletonCard />
-                    </>
+                    <><SkeletonCard /><SkeletonCard /><SkeletonCard /></>
                   ) : columnTasks.length > 0 ? (
                     columnTasks.map(task => (
-                      <TaskCard key={task.id} task={task} onClick={() => setSelectedTask(task)} onDragStart={handleDragStart} />
+                      <TaskCard 
+                        key={task.id} 
+                        task={task} 
+                        onClick={() => setSelectedTask(task)} 
+                        onDragStart={handleDragStart}
+                        onDelete={deleteTask} // <--- CORREÇÃO APLICADA AQUI
+                      />
                     ))
                   ) : (
                     <div className="flex flex-col items-center justify-center py-12 px-4 border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-2xl opacity-40">
-                      <svg className="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                      </svg>
-                      <p className="text-[11px] font-medium text-center">Sem tarefas</p>
+                      <p className="text-[11px] font-medium">Sem tarefas</p>
                     </div>
                   )}
                 </div>
@@ -222,6 +310,14 @@ useEffect(() => {
           })}
         </main>
 
+        <button 
+          onClick={() => setIsAddModalOpen(true)}
+          className="fixed bottom-8 right-8 w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-40 group"
+        >
+          <svg className="w-8 h-8 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
+        </button>
+
+        {isAddModalOpen && <AddTaskModal onClose={() => setIsAddModalOpen(false)} onAdd={addTask} />}
         {selectedTask && <TaskModal task={selectedTask} onClose={() => setSelectedTask(null)} onMove={moveTask} />}
       </div>
     </div>
