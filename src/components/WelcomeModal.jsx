@@ -80,6 +80,18 @@ const WelcomeModal = ({ onClose, darkMode }) => {
               </div>
             </div>
           </div>
+          {/* Aviso Humano - API Wake up */}
+<div className="bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 rounded-2xl p-4 flex gap-4 items-center">
+  <div className="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
+    <span className="text-xl animate-bounce">☕</span>
+  </div>
+  <div className="flex-1">
+    <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+      <span className="font-bold text-slate-900 dark:text-white block mb-0.5">Só um instantinho...</span>
+      Como estamos usando um servidor gratuito, nossa API tira uma soneca quando não está em uso. Ela está <strong>preparando um café</strong> agora e deve acordar em uns 50 segundos para carregar suas tarefas.
+    </p>
+  </div>
+</div>
 
           {/* Botão de Ação - flex-shrink-0 para não ser comprimido */}
           <div className="pt-2 sm:pt-4 flex-shrink-0">
