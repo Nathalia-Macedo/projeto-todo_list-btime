@@ -192,15 +192,19 @@ function App() {
 
   // --- EFEITOS ---
 
-  useEffect(() => {
-    // Lógica de primeira visita
-    const hasVisited = localStorage.getItem('kanban_visited');
-    if (!hasVisited) {
+ useEffect(() => {
+  const hasVisited = localStorage.getItem('kanban_visited');
+  if (!hasVisited) {
+    // Pequeno delay de 500ms para garantir que o modal apareça 
+    // após a interface principal estar pronta
+    const timer = setTimeout(() => {
       setShowWelcome(true);
       localStorage.setItem('kanban_visited', 'true');
-    }
-    fetchTasks();
-  }, [fetchTasks]);
+    }, 500);
+    return () => clearTimeout(timer);
+  }
+  fetchTasks();
+}, [fetchTasks]);
 
   useEffect(() => {
     if (darkMode) {
