@@ -23,6 +23,21 @@ Usei hooks como useCallback e useEffect de forma estratégica para garantir que 
 - **GraphQL**: Para fazer consultas eficientes e buscar exatamente os dados que preciso
 - **SVGs Inline**: Desenvolvi um sistema de ícones vetoriais personalizado
 
+
+## 💎 O que há de novo na Versão 2.0?
+
+Nesta atualização, o **KanbanPro** recebeu uma camada de refinamento estético e funcional focada em retenção de usuários e design de alta fidelidade:
+
+- **Premium Onboarding:** Introdução de um Modal de Boas-Vindas com efeito *Glassmorphism* e *Mesh Gradients* animados no fundo para uma recepção imersiva.
+- **Metallic Branding:** Implementação de gradientes metálicos prateados no logotipo, simulando texturas de aço polido com reflexos sutis.
+- **UX Adaptativa:** Otimização da interface para Mobile, garantindo que usuários de telas pequenas tenham a mesma fluidez de gestão que usuários de Desktop.
+- **Persistence Logic:** Uso de `localStorage` para garantir que o onboarding seja exibido apenas na primeira visita, respeitando a curva de aprendizado do usuário.
+
+### 🛠️ Tecnologias de Design Utilizadas
+- **Tailwind CSS:** Para estilização de utilitários e animações customizadas.
+- **Framing & Transitions:** Uso de `animate-in`, `fade-in` e `zoom-in` para transições de interface suaves.
+- **Glassmorphism:** Backdrops com `backdrop-blur-xl` para profundidade visual.
+
 ## Funcionalidades que Implementei
 
 - **Drag and Drop Nativo**: Usei a API nativa do HTML5 para manipular o estado das tarefas
