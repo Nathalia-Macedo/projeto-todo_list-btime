@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import toast, { Toaster } from 'react-hot-toast'; 
 import TaskCard from '../components/taskCard';
 import TaskModal from '../components/taskModal';
 import SkeletonCard from '../components/skeletonCard';
@@ -50,15 +51,40 @@ function App() {
         setTasks(mappedTasks);
       }
     } catch (error) {
-      console.error("Erro ao buscar tarefas:", error);
+      toast.error("Não foi possível carregar as tarefas.");
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   const deleteTask = async (taskId) => {
-    if (!window.confirm("Tem certeza que deseja apagar esta tarefa?")) return;
+    toast((t) => (
+      <div className="flex flex-col gap-3">
+        <p className="text-sm font-medium text-gray-900 dark:text-white">
+          Deseja apagar esta tarefa definitivamente?
+        </p>
+        <div className="flex gap-2 justify-end">
+          <button 
+            onClick={() => toast.dismiss(t.id)}
+            className="px-3 py-1 text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+          >
+            Cancelar
+          </button>
+          <button 
+            onClick={async () => {
+              toast.dismiss(t.id);
+              executeDelete(taskId);
+            }}
+            className="px-3 py-1 text-xs font-bold bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors shadow-sm shadow-rose-200 dark:shadow-none"
+          >
+            Apagar
+          </button>
+        </div>
+      </div>
+    ), { duration: 5000, position: 'top-center' });
+  };
 
+  const executeDelete = async (taskId) => {
     const mutation = `
       mutation {
         delete_task(id: "${taskId}") {
@@ -76,22 +102,18 @@ function App() {
 
       const result = await response.json();
       if (result.errors) {
-        console.error("Erro ao apagar:", result.errors);
+        toast.error("Erro ao excluir no servidor.");
       } else {
         setTasks(prev => prev.filter(t => t.id !== taskId));
+        toast.success("Tarefa removida!");
       }
     } catch (error) {
-      console.error("Erro de conexão ao apagar:", error);
+      toast.error("Erro de conexão ao tentar apagar.");
     }
   };
 
   const addTask = async (taskData) => {
-    const priorityMap = {
-      'baixa': 'low',
-      'alta': 'high',
-      'crítica': 'critical'
-    };
-
+    const priorityMap = { 'baixa': 'low', 'alta': 'high', 'crítica': 'critical' };
     const translatedPriority = priorityMap[taskData.priority.toLowerCase()] || 'low';
 
     const mutation = `
@@ -120,39 +142,52 @@ function App() {
       const result = await response.json();
       
       if (result.errors) {
-        console.error("Erro detalhado do servidor:", result.errors);
+        toast.error("Erro ao validar dados da nova tarefa.");
       } else {
         setIsAddModalOpen(false);
         fetchTasks();
+        toast.success("Tarefa adicionada!");
       }
     } catch (error) {
-      console.error("Erro de conexão:", error);
+      toast.error("Falha ao enviar para o servidor.");
     }
   };
 
+  // CORREÇÃO: Envolvendo o status em um objeto 'input' como o GraphQL do Elixir exige
   const moveTask = async (taskId, newStatus) => {
-    // Ajustado para 'update_task' conforme padrão snake_case do seu backend Elixir
     const mutation = `
       mutation {
-        update_task(id: "${taskId}", status: "${newStatus}") {
+        update_task(id: "${taskId}", input: { status: "${newStatus}" }) {
           id
           status
         }
       }
     `;
 
+    // Atualização otimista
+    const previousTasks = [...tasks];
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+
     try {
-      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
-      
-      await fetch(API_URL, {
+      const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: mutation })
       });
+
+      const result = await response.json();
+
+      if (result.errors) {
+        setTasks(previousTasks); 
+        toast.error("Erro ao mover: entrada inválida.");
+        console.error("Erro GraphQL:", result.errors);
+      } else {
+        toast.success("Status atualizado!");
+      }
       setSelectedTask(null);
     } catch (error) {
-      console.error("Erro ao mover tarefa:", error);
-      fetchTasks();
+      setTasks(previousTasks);
+      toast.error("Erro de conexão.");
     }
   };
 
@@ -174,7 +209,7 @@ function App() {
 
   const stats = {
     total: tasks.length,
-    critical: tasks.filter(t => t.priority === 'crítica' && t.status !== 'done').length,
+    critical: tasks.filter(t => (t.priority === 'crítica' || t.priority === 'critical') && t.status !== 'done').length,
     todo: tasks.filter(t => t.status === 'todo').length,
     doing: tasks.filter(t => t.status === 'doing').length,
     done: tasks.filter(t => t.status === 'done').length,
@@ -187,11 +222,15 @@ function App() {
 
   // --- DRAG AND DROP ---
 
-  const handleDragStart = (e, taskId) => { e.dataTransfer.setData("taskId", taskId); };
-  const handleDragOver = (e) => { e.preventDefault(); };
+  const handleDragStart = (e, taskId) => { 
+    e.dataTransfer.setData("taskId", taskId); 
+  };
+  const handleDragOver = (e) => { 
+    e.preventDefault(); 
+  };
   const handleDrop = (e, newStatus) => {
     const taskId = e.dataTransfer.getData("taskId");
-    moveTask(taskId, newStatus);
+    if (taskId) moveTask(taskId, newStatus);
   };
 
   // --- FILTRAGEM ---
@@ -236,6 +275,14 @@ function App() {
 
   return (
     <div className={`${darkMode ? 'dark' : ''}`}>
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          className: 'dark:bg-slate-900 dark:text-white dark:border-slate-800 border',
+          duration: 3000,
+        }}
+      />
+      
       <div className="min-h-screen bg-gray-50 dark:bg-slate-950 text-gray-900 dark:text-gray-100 transition-colors duration-500 p-4 md:p-8 font-sans">
         
         <header className="max-w-6xl mx-auto mb-6">
@@ -296,12 +343,12 @@ function App() {
                         task={task} 
                         onClick={() => setSelectedTask(task)} 
                         onDragStart={handleDragStart}
-                        onDelete={deleteTask} // <--- CORREÇÃO APLICADA AQUI
+                        onDelete={deleteTask} // Função passada corretamente aqui
                       />
                     ))
                   ) : (
                     <div className="flex flex-col items-center justify-center py-12 px-4 border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-2xl opacity-40">
-                      <p className="text-[11px] font-medium">Sem tarefas</p>
+                      <p className="text-[11px] font-medium text-gray-400">Sem tarefas</p>
                     </div>
                   )}
                 </div>

@@ -3,21 +3,25 @@ import React from 'react';
 const TaskCard = ({ task, onClick, onDragStart, onDelete }) => {
   // Cores sólidas para a lateral e versões suaves para o hover
   const theme = {
-    baixa: {
+    low: { // Ajustado para bater com o padrão que vem da API (low/high/critical)
       accent: "bg-emerald-500",
       glow: "group-hover:shadow-emerald-500/10",
       text: "text-emerald-600 dark:text-emerald-400"
     },
-    alta: {
+    high: {
       accent: "bg-amber-500",
       glow: "group-hover:shadow-amber-500/10",
       text: "text-amber-600 dark:text-amber-400"
     },
-    crítica: {
+    critical: {
       accent: "bg-rose-500",
       glow: "group-hover:shadow-rose-500/10",
       text: "text-rose-600 dark:text-rose-400"
-    }
+    },
+    // Fallback para os termos em português caso a API ainda envie assim
+    baixa: { accent: "bg-emerald-500", glow: "group-hover:shadow-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400" },
+    alta: { accent: "bg-amber-500", glow: "group-hover:shadow-amber-500/10", text: "text-amber-600 dark:text-amber-400" },
+    crítica: { accent: "bg-rose-500", glow: "group-hover:shadow-rose-500/10", text: "text-rose-600 dark:text-rose-400" }
   };
 
   const isUrgent = (date) => {
@@ -28,11 +32,11 @@ const TaskCard = ({ task, onClick, onDragStart, onDelete }) => {
   };
 
   const urgent = isUrgent(task.date) && task.status !== 'done';
-  const currentTheme = theme[task.priority] || theme.baixa;
+  const currentTheme = theme[task.priority] || theme.low;
 
   // Função para evitar que o clique no botão de apagar abra o modal da tarefa
   const handleDelete = (e) => {
-    e.stopPropagation();
+    e.stopPropagation(); // Impede o clique de "subir" para o Card
     onDelete(task.id);
   };
 
@@ -61,11 +65,11 @@ const TaskCard = ({ task, onClick, onDragStart, onDelete }) => {
               </span>
             )}
             
-            {/* Botão Apagar com Ícone SVG */}
+            {/* Botão Apagar - Aumentado o z-index e o contraste no hover */}
             <button 
               onClick={handleDelete}
-              className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-all duration-200"
-              title="Excluir tarefa"
+              className="z-10 opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/20 rounded-lg transition-all duration-200"
+              aria-label="Excluir tarefa"
             >
               <svg 
                 className="w-4 h-4" 
@@ -76,7 +80,7 @@ const TaskCard = ({ task, onClick, onDragStart, onDelete }) => {
                 <path 
                   strokeLinecap="round" 
                   strokeLinejoin="round" 
-                  strokeWidth="2" 
+                  strokeWidth="2.5" 
                   d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
                 />
               </svg>
@@ -93,7 +97,7 @@ const TaskCard = ({ task, onClick, onDragStart, onDelete }) => {
             <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
             </svg>
-            <span className="text-[10px] font-semibold text-gray-500 dark:text-slate-400">
+            <span className="text-[10px] font-semibold text-gray-500 dark:text-slate-400 truncate max-w-[80px]">
               {task.location}
             </span>
           </div>
@@ -102,12 +106,13 @@ const TaskCard = ({ task, onClick, onDragStart, onDelete }) => {
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            {new Date(task.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+            {task.date ? new Date(task.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '--/--'}
           </div>
         </div>
       </div>
 
-      <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/[0.02] dark:group-hover:bg-white/[0.02] transition-colors pointer-events-none" />
+      {/* Camada de Overlay no Hover */}
+      <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/[0.01] dark:group-hover:bg-white/[0.01] transition-colors pointer-events-none" />
     </div>
   );
 };
